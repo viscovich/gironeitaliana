@@ -8,6 +8,11 @@ import { FinalsResults } from './components/FinalsResults';
 import { generateRoundRobinSchedule } from './services/tournamentService';
 import type { Couple, Round, Match, Standing, TournamentPhase } from './types';
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
+
 function App() {
   const [phase, setPhase] = useState<TournamentPhase>('SETUP');
   const [coupleNames, setCoupleNames] = useState<string[]>(Array(6).fill(''));
@@ -16,6 +21,9 @@ function App() {
   const [standings, setStandings] = useState<Standing[]>([]);
   const [finalMatches, setFinalMatches] = useState<Match[]>([]);
   const [finalRanking, setFinalRanking] = useState<Couple[]>([]);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [showIosBanner, setShowIosBanner] = useState(false);
   
   // New state for navigation
   const [showStandingsInFinals, setShowStandingsInFinals] = useState(false);
@@ -285,6 +293,44 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredPrompt(event as BeforeInstallPromptEvent);
+      setShowInstallPrompt(true);
+    };
+    const handleAppInstalled = () => {
+      setShowInstallPrompt(false);
+      setDeferredPrompt(null);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  useEffect(() => {
+    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    const isInStandalone =
+      (window.navigator as any).standalone ||
+      window.matchMedia('(display-mode: standalone)').matches;
+    if (isIos && !isInStandalone) {
+      setShowIosBanner(true);
+    }
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      setShowInstallPrompt(false);
+    }
+    setDeferredPrompt(null);
+  };
+
   return (
     <div className="bg-gray-900 min-h-screen text-white flex flex-col items-center justify-center p-4 font-sans">
       <img src="https://minioapi.magicalstories.site/immagini/covers/Cag1.png" alt="Cagiano's Cup Logo" className="w-48 h-48 mb-4 rounded-full" />
@@ -295,6 +341,47 @@ function App() {
         <p className="text-gray-400 mt-2">Girone all'italiana e finali (3 campi)</p>
       </header>
       <main className="w-full">
+        {showInstallPrompt && (
+          <div className="max-w-3xl mx-auto mb-4 bg-blue-900/60 border border-blue-600 rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-3">
+            <div className="flex-1">
+              <p className="font-semibold">Installa Cagiano's Cup</p>
+              <p className="text-sm text-gray-200">Aggiungi l'app alla schermata Home per un accesso rapido offline.</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowInstallPrompt(false)}
+                className="px-4 py-2 rounded-lg border border-blue-400 text-blue-200 hover:bg-blue-800 transition text-sm font-semibold"
+              >
+                Più tardi
+              </button>
+              <button
+                onClick={handleInstallClick}
+                className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white font-semibold transition text-sm"
+              >
+                Installa
+              </button>
+            </div>
+          </div>
+        )}
+        {showIosBanner && (
+          <div className="max-w-3xl mx-auto mb-4 bg-gray-800 border border-gray-600 rounded-xl p-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold">Aggiungi alla Home su iPhone</p>
+              <button
+                onClick={() => setShowIosBanner(false)}
+                className="text-gray-400 hover:text-gray-200 text-sm"
+                aria-label="Nascondi istruzioni iOS"
+              >
+                ✕
+              </button>
+            </div>
+            <ol className="list-decimal list-inside text-sm text-gray-200 space-y-1">
+              <li>Apri il menu <span aria-label="Condividi" role="img">🔗</span> in Safari.</li>
+              <li>Seleziona <strong>Aggiungi a Home</strong>.</li>
+              <li>Conferma per avere l'icona come un'app.</li>
+            </ol>
+          </div>
+        )}
         {renderPhase()}
       </main>
     </div>
