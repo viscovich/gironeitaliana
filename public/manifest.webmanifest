@@ -1,6 +1,6 @@
 {
-  "name": "Cagiano's Cup",
-  "short_name": "Cagiano Cup",
+  "name": "Gestione torneo",
+  "short_name": "Gestione torneo",
   "description": "Gestione torneo a girone all'italiana con finali.",
   "start_url": ".",
   "display": "standalone",

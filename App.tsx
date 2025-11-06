@@ -25,6 +25,8 @@ function App() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showIosBanner, setShowIosBanner] = useState(false);
   const [showAndroidHint, setShowAndroidHint] = useState(false);
+  const IOS_BANNER_KEY = 'cagianos-cup-ios-banner-dismissed';
+  const ANDROID_HINT_KEY = 'cagianos-cup-android-hint-dismissed';
   
   // New state for navigation
   const [showStandingsInFinals, setShowStandingsInFinals] = useState(false);
@@ -315,16 +317,18 @@ function App() {
 
   useEffect(() => {
     const ua = window.navigator.userAgent || '';
-    const isIosDevice = /iPad|iPhone|iPod/.test(ua);
+    const nav = window.navigator as Navigator & { standalone?: boolean; userAgentData?: any };
     const isStandalone =
-      (window.navigator as any).standalone === true ||
-      window.matchMedia('(display-mode: standalone)').matches;
+      nav.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    const isTouchMac =
+      /Macintosh/.test(ua) && typeof nav.maxTouchPoints === 'number' && nav.maxTouchPoints > 1;
+    const isIosDevice = /iPhone|iPad|iPod/.test(ua) || isTouchMac;
     const isSafari =
-      /Safari/.test(ua) &&
-      !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+      (/Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)) ||
+      (isTouchMac && nav.vendor === 'Apple Computer, Inc.');
     const dismissed =
       typeof window.localStorage !== 'undefined' &&
-      window.localStorage.getItem('cagianos-cup-ios-banner-dismissed') === '1';
+      window.localStorage.getItem(IOS_BANNER_KEY) === '1';
 
     if (isIosDevice && isSafari && !isStandalone && !dismissed) {
       setShowIosBanner(true);
@@ -333,20 +337,27 @@ function App() {
 
   useEffect(() => {
     const ua = window.navigator.userAgent || '';
-    const isAndroid = /Android/.test(ua);
+    const nav = window.navigator as Navigator & { userAgentData?: { platform?: string } };
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const isAndroidUa = /Android/.test(ua);
+    const isAndroidPlatform = nav.userAgentData?.platform === 'Android';
+    const isAndroid = isAndroidUa || isAndroidPlatform;
+    const dismissed =
+      typeof window.localStorage !== 'undefined' &&
+      window.localStorage.getItem(ANDROID_HINT_KEY) === '1';
 
-    if (!isAndroid || isStandalone) {
+    if (!isAndroid || isStandalone || dismissed) {
       return;
     }
 
-    const timer = window.setTimeout(() => {
-      if (!deferredPrompt) {
+    if (!deferredPrompt) {
+      const timer = window.setTimeout(() => {
         setShowAndroidHint(true);
-      }
-    }, 3000);
-
-    return () => window.clearTimeout(timer);
+      }, 1500);
+      return () => window.clearTimeout(timer);
+    } else {
+      setShowAndroidHint(false);
+    }
   }, [deferredPrompt]);
 
   const handleInstallClick = async () => {
@@ -363,7 +374,16 @@ function App() {
   const handleDismissIosBanner = () => {
     setShowIosBanner(false);
     try {
-      window.localStorage.setItem('cagianos-cup-ios-banner-dismissed', '1');
+      window.localStorage.setItem(IOS_BANNER_KEY, '1');
+    } catch {
+      // ignore storage failures
+    }
+  };
+
+  const handleDismissAndroidHint = () => {
+    setShowAndroidHint(false);
+    try {
+      window.localStorage.setItem(ANDROID_HINT_KEY, '1');
     } catch {
       // ignore storage failures
     }
@@ -406,7 +426,7 @@ function App() {
             <div className="flex items-center justify-between">
               <p className="font-semibold">Installa su Android</p>
               <button
-                onClick={() => setShowAndroidHint(false)}
+                onClick={handleDismissAndroidHint}
                 className="text-gray-400 hover:text-gray-200 text-sm"
               >
                 ✕
