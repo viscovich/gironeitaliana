@@ -24,6 +24,7 @@ function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showIosBanner, setShowIosBanner] = useState(false);
+  const [showAndroidHint, setShowAndroidHint] = useState(false);
   
   // New state for navigation
   const [showStandingsInFinals, setShowStandingsInFinals] = useState(false);
@@ -298,6 +299,7 @@ function App() {
       event.preventDefault();
       setDeferredPrompt(event as BeforeInstallPromptEvent);
       setShowInstallPrompt(true);
+      setShowAndroidHint(false);
     };
     const handleAppInstalled = () => {
       setShowInstallPrompt(false);
@@ -312,14 +314,40 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-    const isInStandalone =
-      (window.navigator as any).standalone ||
+    const ua = window.navigator.userAgent || '';
+    const isIosDevice = /iPad|iPhone|iPod/.test(ua);
+    const isStandalone =
+      (window.navigator as any).standalone === true ||
       window.matchMedia('(display-mode: standalone)').matches;
-    if (isIos && !isInStandalone) {
+    const isSafari =
+      /Safari/.test(ua) &&
+      !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+    const dismissed =
+      typeof window.localStorage !== 'undefined' &&
+      window.localStorage.getItem('cagianos-cup-ios-banner-dismissed') === '1';
+
+    if (isIosDevice && isSafari && !isStandalone && !dismissed) {
       setShowIosBanner(true);
     }
   }, []);
+
+  useEffect(() => {
+    const ua = window.navigator.userAgent || '';
+    const isAndroid = /Android/.test(ua);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+    if (!isAndroid || isStandalone) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      if (!deferredPrompt) {
+        setShowAndroidHint(true);
+      }
+    }, 3000);
+
+    return () => window.clearTimeout(timer);
+  }, [deferredPrompt]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -329,6 +357,16 @@ function App() {
       setShowInstallPrompt(false);
     }
     setDeferredPrompt(null);
+    setDeferredPrompt(null);
+  };
+
+  const handleDismissIosBanner = () => {
+    setShowIosBanner(false);
+    try {
+      window.localStorage.setItem('cagianos-cup-ios-banner-dismissed', '1');
+    } catch {
+      // ignore storage failures
+    }
   };
 
   return (
@@ -363,12 +401,28 @@ function App() {
             </div>
           </div>
         )}
+        {showAndroidHint && !showInstallPrompt && (
+          <div className="max-w-3xl mx-auto mb-4 bg-gray-800 border border-gray-600 rounded-xl p-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold">Installa su Android</p>
+              <button
+                onClick={() => setShowAndroidHint(false)}
+                className="text-gray-400 hover:text-gray-200 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm text-gray-200">
+              Apri il menu ⋮ di Chrome e scegli <strong>Installa app</strong> per aggiungere l'icona alla schermata Home.
+            </p>
+          </div>
+        )}
         {showIosBanner && (
           <div className="max-w-3xl mx-auto mb-4 bg-gray-800 border border-gray-600 rounded-xl p-4 flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <p className="font-semibold">Aggiungi alla Home su iPhone</p>
               <button
-                onClick={() => setShowIosBanner(false)}
+                onClick={handleDismissIosBanner}
                 className="text-gray-400 hover:text-gray-200 text-sm"
                 aria-label="Nascondi istruzioni iOS"
               >
