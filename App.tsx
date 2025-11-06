@@ -10,6 +10,7 @@ import type { Couple, Round, Match, Standing, TournamentPhase } from './types';
 
 function App() {
   const [phase, setPhase] = useState<TournamentPhase>('SETUP');
+  const [coupleNames, setCoupleNames] = useState<string[]>(Array(6).fill(''));
   const [couples, setCouples] = useState<Couple[]>([]);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [standings, setStandings] = useState<Standing[]>([]);
@@ -21,8 +22,9 @@ function App() {
   const [completedView, setCompletedView] = useState<'ranking' | 'standings' | 'finals'>('ranking');
 
 
-  const handleCouplesSubmit = (coupleNames: string[]) => {
-    const newCouples = coupleNames.map((name, index) => ({ id: index, name }));
+  const handleCouplesSubmit = (submittedNames: string[]) => {
+    setCoupleNames(submittedNames);
+    const newCouples = submittedNames.map((name, index) => ({ id: index, name }));
     setCouples(newCouples);
     const schedule = generateRoundRobinSchedule(newCouples);
     setRounds(schedule);
@@ -166,6 +168,7 @@ function App() {
 
   const handleReset = () => {
     setPhase('SETUP');
+    setCoupleNames(Array(6).fill(''));
     setCouples([]);
     setRounds([]);
     setStandings([]);
@@ -174,17 +177,36 @@ function App() {
     setShowStandingsInFinals(false);
     setCompletedView('ranking');
   };
-  
+
   const handleGoBackToRounds = () => {
     setPhase('ROUND_ROBIN');
+  };
+
+  const handleEditCouples = () => {
+    setPhase('SETUP');
+  };
+
+  const handleEditRoundRobin = () => {
+    setPhase('ROUND_ROBIN');
+    setCompletedView('ranking');
+    setFinalMatches([]);
+    setFinalRanking([]);
+    setShowStandingsInFinals(false);
   };
 
   const renderPhase = () => {
     switch (phase) {
       case 'SETUP':
-        return <CoupleInput onSubmit={handleCouplesSubmit} />;
+        return <CoupleInput onSubmit={handleCouplesSubmit} initialNames={coupleNames} />;
       case 'ROUND_ROBIN':
-        return <RoundRobin rounds={rounds} onUpdateScore={handleUpdateScore} onFinishRounds={handleFinishRounds} />;
+        return (
+          <RoundRobin
+            rounds={rounds}
+            onUpdateScore={handleUpdateScore}
+            onFinishRounds={handleFinishRounds}
+            onEditCouples={handleEditCouples}
+          />
+        );
       case 'STANDINGS':
         return <StandingsTable standings={standings} onProceedToFinals={handleProceedToFinals} onGoBack={handleGoBackToRounds} />;
       case 'FINALS':
@@ -245,6 +267,14 @@ function App() {
                     </button>
                     <button onClick={() => setCompletedView('finals')} className={`${navButtonClass} ${completedView === 'finals' ? activeNavButtonClass : inactiveNavButtonClass}`}>
                         Finali
+                    </button>
+                </div>
+                <div className="mb-6 text-center">
+                    <button
+                        onClick={handleEditRoundRobin}
+                        className="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-4 py-2 rounded-md shadow transition"
+                    >
+                        Modifica risultati Girone all'italiana
                     </button>
                 </div>
                 {renderCompletedView()}

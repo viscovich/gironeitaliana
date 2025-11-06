@@ -5,6 +5,7 @@ interface RoundRobinProps {
   rounds: Round[];
   onUpdateScore: (roundIndex: number, matchIndex: number, score1: number, score2: number) => void;
   onFinishRounds: () => void;
+  onEditCouples: () => void;
 }
 
 const MatchInput: React.FC<{
@@ -27,35 +28,38 @@ const MatchInput: React.FC<{
   };
 
   return (
-    <div className="bg-gray-700 p-4 rounded-lg mb-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div className="text-sm text-gray-400 font-bold">Campo {match.court}</div>
-      <div className="flex-1 text-center sm:text-left font-semibold">{match.couple1.name}</div>
-      <div className="flex items-center gap-2">
-        <input
-          type="number"
-          min="0"
-          value={score1}
-          onChange={(e) => handleScoreChange(e.target.value, score2)}
-          className="w-16 bg-gray-800 border border-gray-600 rounded-md p-2 text-white text-center"
-          aria-label={`Score for ${match.couple1.name}`}
-        />
-        <span className="text-gray-400">-</span>
-        <input
-          type="number"
-          min="0"
-          value={score2}
-          onChange={(e) => handleScoreChange(score1, e.target.value)}
-          className="w-16 bg-gray-800 border border-gray-600 rounded-md p-2 text-white text-center"
-          aria-label={`Score for ${match.couple2.name}`}
-        />
+    <div className="bg-gray-700 p-4 rounded-lg mb-4">
+      <div className="text-center text-sm text-gray-400 font-bold">Campo {match.court}</div>
+      <div className="mt-4 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 text-white font-semibold">{match.couple1.name}</div>
+          <input
+            type="number"
+            min="0"
+            value={score1}
+            onChange={(e) => handleScoreChange(e.target.value, score2)}
+            className="w-20 bg-gray-900 border border-gray-600 rounded-md p-2 text-white text-center"
+            aria-label={`Punteggio ${match.couple1.name}`}
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1 text-white font-semibold">{match.couple2.name}</div>
+          <input
+            type="number"
+            min="0"
+            value={score2}
+            onChange={(e) => handleScoreChange(score1, e.target.value)}
+            className="w-20 bg-gray-900 border border-gray-600 rounded-md p-2 text-white text-center"
+            aria-label={`Punteggio ${match.couple2.name}`}
+          />
+        </div>
       </div>
-      <div className="flex-1 text-center sm:text-right font-semibold">{match.couple2.name}</div>
     </div>
   );
 };
 
 
-export const RoundRobin: React.FC<RoundRobinProps> = ({ rounds, onUpdateScore, onFinishRounds }) => {
+export const RoundRobin: React.FC<RoundRobinProps> = ({ rounds, onUpdateScore, onFinishRounds, onEditCouples }) => {
   const [activeRound, setActiveRound] = useState(0);
 
   const handlePrevRound = () => {
@@ -72,7 +76,15 @@ export const RoundRobin: React.FC<RoundRobinProps> = ({ rounds, onUpdateScore, o
 
   return (
     <div className="bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-3xl mx-auto">
-      <h2 className="text-3xl font-bold text-center text-white mb-6">Gironi</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <h2 className="text-3xl font-bold text-center sm:text-left text-white flex-1">Gironi</h2>
+        <button
+          onClick={onEditCouples}
+          className="bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow transition"
+        >
+          Modifica nomi coppie
+        </button>
+      </div>
       <div className="flex justify-center mb-6 border-b border-gray-700">
         {rounds.map((_, index) => (
           <button

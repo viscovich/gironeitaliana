@@ -1,13 +1,20 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface CoupleInputProps {
   onSubmit: (coupleNames: string[]) => void;
+  initialNames?: string[];
 }
 
-export const CoupleInput: React.FC<CoupleInputProps> = ({ onSubmit }) => {
-  const [names, setNames] = useState<string[]>(Array(6).fill(''));
+export const CoupleInput: React.FC<CoupleInputProps> = ({ onSubmit, initialNames }) => {
+  const [names, setNames] = useState<string[]>(initialNames ?? Array(6).fill(''));
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialNames) {
+      setNames(initialNames);
+    }
+  }, [initialNames]);
 
   const handleNameChange = (index: number, value: string) => {
     const newNames = [...names];

@@ -1,0 +1,24 @@
+{
+  "name": "Cagiano's Cup",
+  "short_name": "Cagiano Cup",
+  "description": "Gestione torneo a girone all'italiana con finali.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "/icons/cagiano-cup-logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/cagiano-cup-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
