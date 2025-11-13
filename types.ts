@@ -1,7 +1,14 @@
 
+export interface Participant {
+  id: number;
+  name: string;
+  isSeed: boolean;
+}
+
 export interface Couple {
   id: number;
   name: string;
+  isSeed?: boolean;
 }
 
 export interface Match {

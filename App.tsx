@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { CoupleInput } from './components/CoupleInput';
+import { ParticipantInput } from './components/ParticipantInput';
 import { RoundRobin } from './components/RoundRobin';
 import { StandingsTable } from './components/StandingsTable';
 import { Finals } from './components/Finals';
 import { FinalRanking } from './components/FinalRanking';
 import { FinalsResults } from './components/FinalsResults';
+import { drawCouples } from './services/drawService';
 import { generateRoundRobinSchedule } from './services/tournamentService';
-import type { Couple, Round, Match, Standing, TournamentPhase } from './types';
+import type { Couple, Round, Match, Standing, TournamentPhase, Participant } from './types';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -31,6 +33,10 @@ function App() {
   // New state for navigation
   const [showStandingsInFinals, setShowStandingsInFinals] = useState(false);
   const [completedView, setCompletedView] = useState<'ranking' | 'standings' | 'finals'>('ranking');
+  const [pairingMode, setPairingMode] = useState<'FIXED' | 'DRAW'>('FIXED');
+  const [drawnCouples, setDrawnCouples] = useState<Couple[] | null>(null);
+  const [drawError, setDrawError] = useState<string | null>(null);
+  const [participantsFormKey, setParticipantsFormKey] = useState(0);
 
 
   const handleCouplesSubmit = (submittedNames: string[]) => {
@@ -40,6 +46,42 @@ function App() {
     const schedule = generateRoundRobinSchedule(newCouples);
     setRounds(schedule);
     setPhase('ROUND_ROBIN');
+  };
+
+  const handleParticipantsDraw = (participants: Participant[]) => {
+    try {
+      const generatedCouples = drawCouples(participants);
+      setDrawnCouples(generatedCouples);
+      setDrawError(null);
+    } catch (error) {
+      setDrawnCouples(null);
+      setDrawError(error instanceof Error ? error.message : 'Errore durante l\'estrazione.');
+    }
+  };
+
+  const handleConfirmDraw = () => {
+    if (!drawnCouples) {
+      return;
+    }
+    const normalized = drawnCouples.map((couple, index) => ({ ...couple, id: index }));
+    setCoupleNames(normalized.map(couple => couple.name));
+    setCouples(normalized);
+    const schedule = generateRoundRobinSchedule(normalized);
+    setRounds(schedule);
+    setPhase('ROUND_ROBIN');
+  };
+
+  const handlePairingModeChange = (mode: 'FIXED' | 'DRAW') => {
+    setPairingMode(mode);
+    setDrawnCouples(null);
+    setDrawError(null);
+    setParticipantsFormKey(prev => prev + 1);
+  };
+
+  const handleRestartDrawFlow = () => {
+    setDrawnCouples(null);
+    setDrawError(null);
+    setParticipantsFormKey(prev => prev + 1);
   };
 
   const handleUpdateScore = (roundIndex: number, matchIndex: number, score1: number, score2: number) => {
@@ -187,6 +229,9 @@ function App() {
     setFinalRanking([]);
     setShowStandingsInFinals(false);
     setCompletedView('ranking');
+    setDrawnCouples(null);
+    setDrawError(null);
+    setPairingMode('FIXED');
   };
 
   const handleGoBackToRounds = () => {
@@ -205,10 +250,97 @@ function App() {
     setShowStandingsInFinals(false);
   };
 
+  const renderPairingSelector = () => {
+    const buttonBase =
+      'flex-1 px-4 py-3 rounded-lg font-semibold transition border border-transparent';
+    const selected = 'bg-cyan-500 text-gray-900';
+    const unselected = 'bg-gray-800 text-gray-200 border-gray-600 hover:bg-gray-700';
+    return (
+      <div className="max-w-3xl mx-auto mb-6">
+        <div className="bg-gray-900/70 border border-gray-700 rounded-2xl p-4 flex flex-col gap-3 md:flex-row">
+          <button
+            type="button"
+            onClick={() => handlePairingModeChange('FIXED')}
+            className={`${buttonBase} ${pairingMode === 'FIXED' ? selected : unselected}`}
+          >
+            Coppie già decise
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePairingModeChange('DRAW')}
+            className={`${buttonBase} ${pairingMode === 'DRAW' ? selected : unselected}`}
+          >
+            Estrazione a sorte
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDrawnCouplesPreview = () => {
+    if (!drawnCouples) {
+      return null;
+    }
+    return (
+      <div className="bg-gray-800 p-6 rounded-xl shadow-2xl w-full max-w-3xl mx-auto space-y-5">
+        <div>
+          <h3 className="text-2xl font-bold text-white mb-1">Coppie estratte</h3>
+          <p className="text-sm text-gray-300">Rivedi l'abbinamento e conferma per generare il girone.</p>
+        </div>
+        <ul className="divide-y divide-gray-700">
+          {drawnCouples.map((couple, index) => (
+            <li
+              key={couple.name + index}
+              className="py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+            >
+              <div>
+                <p className="text-sm text-gray-400">Coppia {index + 1}</p>
+                <p className="text-lg font-semibold text-white">{couple.name}</p>
+              </div>
+              {couple.isSeed ? (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-400/20 text-yellow-200 border border-yellow-400/40">
+                  Include testa di serie
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-gray-300 border border-gray-600/70">
+                  Coppia standard
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+        <div className="flex flex-col md:flex-row gap-3">
+          <button
+            onClick={handleConfirmDraw}
+            className="flex-1 bg-green-500 hover:bg-green-400 text-gray-900 font-bold py-3 rounded-lg shadow-lg transition"
+          >
+            Conferma coppie e avvia torneo
+          </button>
+          <button
+            type="button"
+            onClick={handleRestartDrawFlow}
+            className="px-4 py-3 rounded-lg border border-gray-500 text-gray-200 hover:bg-gray-700 transition"
+          >
+            Ricomincia inserimento
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderPhase = () => {
     switch (phase) {
       case 'SETUP':
-        return <CoupleInput onSubmit={handleCouplesSubmit} initialNames={coupleNames} />;
+        return (
+          <>
+            {renderPairingSelector()}
+            {pairingMode === 'FIXED'
+              ? <CoupleInput onSubmit={handleCouplesSubmit} initialNames={coupleNames} />
+              : drawnCouples
+                ? renderDrawnCouplesPreview()
+                : <ParticipantInput key={participantsFormKey} onDraw={handleParticipantsDraw} error={drawError} />}
+          </>
+        );
       case 'ROUND_ROBIN':
         return (
           <RoundRobin
@@ -292,7 +424,12 @@ function App() {
             </div>
         );
       default:
-        return <CoupleInput onSubmit={handleCouplesSubmit} />;
+        return (
+          <>
+            {renderPairingSelector()}
+            <CoupleInput onSubmit={handleCouplesSubmit} />
+          </>
+        );
     }
   };
 
